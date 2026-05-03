@@ -20,6 +20,7 @@
 10. [Package Pi](#10-package-pi)
 11. [Phases de déploiement](#11-phases-de-déploiement)
 12. [Risques et mitigations](#12-risques-et-mitigations)
+- **[Algorithmes & Concepts →](ALGORITHMS.md)** — 15 algorithmes extraits de codex-claude-memory-autopilot, transposés à Neo4j
 
 ---
 
