@@ -314,9 +314,40 @@ Host vm2
 | `INTERNAL_API_KEY` | `/home/bzn/.pi/.env` | `600` |
 | `BOT_TOKEN` | `/home/bzn/.pi/.env` | `600` |
 | `HF_TOKEN` | `/home/bzn/.pi/.env` | `600` |
+| `GITHUB_TOKEN` | `/home/bzn/.git-credentials` | `600` |
 | llama-qwen API key | `/etc/systemd/system/llama-qwen.service` | `644` |
 | Pi providers config | `/home/bzn/.pi/agent/models.json` | `644` |
 | Restic backup password | `/etc/restic-password` | `600` (root) |
+
+### Git credentials (comment les utiliser)
+
+Les credentials GitHub sont stockés dans `~/.git-credentials` (format `store`) :
+
+```bash
+# Voir l'utilisateur
+cat ~/.git-credentials | grep -oP '//[^:]+'
+
+# Extraire le token
+TOKEN=$(grep -oP 'ghp_[^@]+' /home/bzn/.git-credentials)
+
+# Utiliser pour les API GitHub
+curl -H "Authorization: token $TOKEN" https://api.github.com/user
+
+# Pusher via HTTPS avec token
+TOKEN=$(grep -oP 'ghp_[^@]+' /home/bzn/.git-credentials)
+git remote set-url origin "https://BzNdevOps:${TOKEN}@github.com/BzNdevOps/<repo>.git"
+git push -u origin main
+
+# Créer un repo via API
+TOKEN=$(grep -oP 'ghp_[^@]+' /home/bzn/.git-credentials)
+curl -s -H "Authorization: token $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"mon-repo","description":"...","private":false}' \
+  https://api.github.com/user/repos
+```
+
+> ⚠️ **Ne jamais afficher le token** dans les logs, commits, ou réponses visibles. Toujours utiliser `$(grep ...)` pour l'injecter sans l'afficher.
+> ⚠️ **SSH vers GitHub ne fonctionne pas sur bzserv** — la clé `id_ed25519` n'est pas enregistrée sur GitHub. Toujours utiliser HTTPS + token.
 
 ---
 
