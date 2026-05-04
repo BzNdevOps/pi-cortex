@@ -213,6 +213,13 @@ printf "pi-cortex Phase 0 — Prérequis ✅\n\nEnvironnement vérifié:\n• No
 
 ## Phase 1 — Infrastructure (bzserv)
 
+> **Before starting Phase 1 — read these docs:**
+> ```bash
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/docs/podman-quadlet.md
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/docs/neo4j-5x-cypher.md
+> ```
+> Key facts: (1) Place `.container` files in `/etc/containers/systemd/`. (2) Do NOT use `PublishPort=` — use nginx proxy. (3) Fixed IP syntax is `Network=name.network:ip=x.x.x.x`. (4) Neo4j 5.x env var syntax uses `__` double-underscore for dots.
+
 ### Step 1.1 — Neo4j container running
 > **Goal:** Neo4j Community 5.x is deployed via Podman Quadlet, HTTP accessible on `127.0.0.1:7474`.
 > **Ref:** PLAN-OPUS.md §11 Phase 1.1
@@ -384,6 +391,14 @@ printf "pi-cortex Phase 1 — Infrastructure ✅\n\nSteps done:\n• 1.1 Neo4j C
 ---
 
 ## Phase 2a — API Server Core
+
+> **Before starting Phase 2a — read these docs:**
+> ```bash
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/docs/neo4j-5x-cypher.md
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/docs/vitest.md
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/ALGORITHMS.md
+> ```
+> Key facts: (1) Token estimation = `Math.ceil(text.length / 4)` — see ALGORITHMS.md §1.5. (2) `_RAW_LEXICON` keywords are already stemmed — see ALGORITHMS.md §3.1. (3) All Cypher queries MUST use `$param` placeholders — no string concatenation. (4) Test runner is `vitest run` — filter with `-t "pattern"`.
 
 ### Step 2a.1 — Node.js project initialized
 > **Goal:** `app/api-server/` has a valid TypeScript project with required dependencies.
@@ -764,15 +779,15 @@ printf "pi-cortex Phase 2b — Watcher + Write Endpoints ✅\n\nSteps done:\n•
 
 ## Phase 3 — Pi Extension
 
-> **Before starting Phase 3 — read these files first:**
+> **Before starting Phase 3 — read these docs:**
 > ```bash
-> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/extensions/security-guard.ts   # guardrail pattern (tool_call hook)
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/docs/pi-sdk.md        # Pi ExtensionAPI — events, registerTool, ctx methods
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/docs/esbuild.md        # exact build flags for .ts output
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/docs/vitest.md         # test runner CLI
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/extensions/security-guard.ts   # guardrail pattern
 > cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/extensions/custom-compaction.ts # session_before_compact pattern
-> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/extensions/qwen-autostart.ts   # minimal extension structure
-> # Also read PLAN-OPUS.md §6.1–§6.4 for the full Pi SDK spec (correct event names, token budget, esbuild recipe)
 > ```
-> The scaffold is already in place: `app/extension/src/index.ts` has all 7 tools and 4 hooks stubbed.
-> Fill in the TODO sections — do NOT rewrite the file structure.
+> Key facts: (1) Pi SDK event for memory injection is `before_agent_start` (PLAN-OPUS calls it `context` — try both if one doesn't fire). (2) `prependToSystem()` is NOT in Pi SDK — it's already implemented in the stub. (3) `--external:@mariozechner/pi-coding-agent` is mandatory in esbuild. (4) The scaffold (`app/extension/src/index.ts`) has all 7 tools and 4 hooks pre-wired — fill in TODO bodies only.
 
 ### Step 3.1 — Extension builds without errors
 > **Goal:** TypeScript extension compiles to `.pi/extensions/pi-cortex/index.ts` (esbuild bundle).
@@ -991,6 +1006,13 @@ printf "pi-cortex Phase 4 — Skills + Prompts ✅\n\nSteps done:\n• 6 SKILL.m
 ---
 
 ## Phase 5a — Gardener MVP (7 missions)
+
+> **Before starting Phase 5a — read these docs:**
+> ```bash
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/docs/neo4j-5x-cypher.md   # temporal functions, MERGE vs CREATE, fulltext
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/PLAN-OPUS.md                         # §7.1.1 has Cypher for missions 3, 11, 13, 16
+> ```
+> Key facts: (1) ACO evaporation uses `duration.between(datetime(k.updated_at), datetime()).days` — NOT `(datetime() - k.updated_at).days`. (2) Cross-reference (Mission 11) uses `MERGE … ON CREATE SET` to avoid duplicate edges. (3) Snapshot uses `podman exec neo4j neo4j-admin database dump neo4j --to-path=/data/backups/ --overwrite-destination=true`. (4) Gardener is a plain Node.js binary — NOT a Pi extension.
 
 ### Step 5a.1 — Gardener scaffolded and buildable
 > **Goal:** `app/gardener/` builds without errors, `gardener.js --help` works.
