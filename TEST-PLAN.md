@@ -764,6 +764,16 @@ printf "pi-cortex Phase 2b — Watcher + Write Endpoints ✅\n\nSteps done:\n•
 
 ## Phase 3 — Pi Extension
 
+> **Before starting Phase 3 — read these files first:**
+> ```bash
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/extensions/security-guard.ts   # guardrail pattern (tool_call hook)
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/extensions/custom-compaction.ts # session_before_compact pattern
+> cat /home/bzn/Projects/BzNdevOps/pi-cortex/reference/extensions/qwen-autostart.ts   # minimal extension structure
+> # Also read PLAN-OPUS.md §6.1–§6.4 for the full Pi SDK spec (correct event names, token budget, esbuild recipe)
+> ```
+> The scaffold is already in place: `app/extension/src/index.ts` has all 7 tools and 4 hooks stubbed.
+> Fill in the TODO sections — do NOT rewrite the file structure.
+
 ### Step 3.1 — Extension builds without errors
 > **Goal:** TypeScript extension compiles to `.pi/extensions/pi-cortex/index.ts` (esbuild bundle).
 > **Ref:** PLAN-OPUS.md §6.4, §11 Phase 3.1
@@ -815,17 +825,17 @@ print('BROKEN:' + ','.join(broken) if broken else 'OK')
 > **Ref:** PLAN-OPUS.md §6.3
 
 ```bash
-# Unit test: verify injection logic returns max 1500 tokens
-cd /home/bzn/Projects/BzNdevOps/pi-cortex && \
-npm test -- --grep "context.*injection|token.*cap|injection.*budget" 2>&1 | tail -5
+cd /home/bzn/Projects/BzNdevOps/pi-cortex/app/extension && \
+npx vitest run -t "context injection" 2>&1 | tail -10
 ```
 
-**PASS:** `passing` with count ≥ 1, zero `failing`
+**PASS:** At least 1 test passes, zero failing
 **FAIL hints:**
 - Test should verify: if API returns 2000 tokens worth of results, injection is truncated to 1500
 - Test should verify: on 800ms timeout, injection is silently skipped (no throw)
 - Test should verify: on API 5xx, injection is silently skipped
 - Use `AbortSignal.timeout(800)` — not `setTimeout`
+- Test stubs are in `app/extension/src/index.test.ts` — fill in the `context injection` describe block
 
 ---
 
@@ -841,7 +851,8 @@ grep -c "registerTool" /home/bzn/Projects/BzNdevOps/pi-cortex/app/extension/src/
 **FAIL hints:**
 - Required tools: `memory_search`, `memory_search_routed`, `memory_get`, `memory_record_lesson`, `memory_get_graph`, `memory_status`, `memory_feedback`
 - Use `@sinclair/typebox` `Type.*` for parameter schemas (Pi SDK requirement)
-- Copy pattern from `reference/extensions/memory-cycle/index.ts`
+- Pattern is already wired in `app/extension/src/index.ts` — `pi.registerTool("memory_search", { parameters: Type.Object({...}), execute: async (...) => {...} })`
+- `Type.*` schemas come from `@sinclair/typebox` (already in devDependencies)
 
 ---
 
@@ -850,15 +861,16 @@ grep -c "registerTool" /home/bzn/Projects/BzNdevOps/pi-cortex/app/extension/src/
 > **Ref:** PLAN-OPUS.md §6.2 (tool_call hook), AGENTS.md security rules
 
 ```bash
-cd /home/bzn/Projects/BzNdevOps/pi-cortex && \
-npm test -- --grep "guardrail|tool_call|security" 2>&1 | tail -5
+cd /home/bzn/Projects/BzNdevOps/pi-cortex/app/extension && \
+npx vitest run -t "guardrail" 2>&1 | tail -10
 ```
 
-**PASS:** `passing` with count ≥ 3 (at least 3 blocked patterns tested), zero `failing`
+**PASS:** At least 3 tests pass (one per blocked pattern), zero failing
 **FAIL hints:**
 - Blocked patterns: `0.0.0.0`, `--no-verify`, `rm -rf /`, `ufw delete`, `chmod 777`
-- Pattern: `pi.on("tool_call", ...)` — copy from `reference/extensions/security-guard/index.ts`
+- Pattern: `pi.on("tool_call", ...)` — copy from `reference/extensions/security-guard.ts` (file is at `reference/extensions/security-guard.ts`, NOT in a subdirectory)
 - Block = return `{block: true, reason: "..."}` from the hook
+- Test stubs are in `app/extension/src/index.test.ts` — fill in the `guardrail` describe block
 
 ---
 

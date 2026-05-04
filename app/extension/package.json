@@ -1,0 +1,16 @@
+{
+  "name": "pi-cortex-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --external:@mariozechner/pi-coding-agent --external:@mariozechner/pi-tui --external:@sinclair/typebox --outfile=../../.pi/extensions/pi-cortex/index.ts",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
