@@ -19,7 +19,7 @@
 ```
 iPhone/Laptop (Obsidian) ──WebDAV──→ bzserv:/opt/knowledge-vault/
                                            │
-Agent Pi (extension) ──API REST──→ API Server (Node.js, :3001)
+Agent Pi (extension) ──API REST──→ API Server (Node.js, :3002)
                                            │
 Sub-agents ──API REST (filtré)──→        Neo4j (Podman)
                                            │

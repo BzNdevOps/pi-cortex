@@ -1,0 +1,27 @@
+{
+  "$schema": "session-state-v2",
+  "project": "pi-cortex",
+  "cwd": "/home/bzn/Projects/BzNdevOps/pi-cortex",
+  "ts": "2026-05-03T16:32:01.721Z",
+  "continue": "  **Confirmed from the official Pi SDK docs: there is NO `pi install` command for local extensions.**\n\nLocal extensions are loaded via **auto-discovery** or **`settings.json` paths** — not through any install command. `pi install` only works for packages (npm/git).\n\nHere are the **3 correct ways** t",
+  "task": "read this project",
+  "files": [
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/PiExtensions.md",
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/PiExt-Blueprint.md",
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/.gitignore",
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/.pi/settings.json",
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/reference/extensions/INSTALL-MANIFEST.md"
+  ],
+  "files_read": [
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/README.md",
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/PLAN.md",
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/AGENT_HANDOVER.md",
+    "/home/bzn/Projects/BzNdevOps/pi-cortex/ALGORITHMS.md",
+    "/home/bzn/Projects/BzNdevOps/bzn-pi-agents/orchestrator/agents/d4-deploy.agent",
+    "/home/bzn/Projects/BzNdevOps/bzn-pi-agents/orchestrator/agents/d4-security.agent",
+    "/home/bzn/Projects/BzNdevOps/bzn-pi-agents/orchestrator/dags/deploy_guard.yml",
+    "/home/bzn/Projects/BzNdevOps/bzn-pi-agents/extensions/control-watch.ts",
+    "/home/bzn/Projects/BzNdevOps/bzn-pi-agents/extensions/qwen-autostart.ts",
+    "/home/bzn/Projects/BzNdevOps/bzn-pi-agents/docs/source-of-truth.yml"
+  ]
+}

@@ -1,0 +1,83 @@
+blocked_commands:
+  - pattern: "rm\\s+(-[a-zA-Z]*r[a-zA-Z]*\\s+|--recursive)"
+    description: "Recursive delete"
+    severity: warn
+    category: destructive
+  - pattern: "rm\\s+(-[a-zA-Z]*f[a-zA-Z]*\\s+)"
+    description: "Force delete"
+    severity: warn
+    category: destructive
+  - pattern: "sudo\\s+"
+    description: "Sudo usage"
+    severity: warn
+    category: permissions
+  - pattern: "printenv"
+    description: "Env dump"
+    severity: warn
+    category: exfiltration
+  - pattern: "curl\\s+.*\\|\\s*(bash|sh|zsh)"
+    description: "Pipe to shell"
+    severity: block
+    category: remote_exec
+
+exfiltration_patterns:
+  - pattern: "curl\\s+.*(transfer\\.sh|pastebin|0x0\\.st)"
+    description: "Upload to paste service"
+    severity: block
+    category: exfiltration
+
+allowlist:
+  commands:
+    - "sudo cp.*"
+    - "sudo systemctl.*"
+    - "sudo mkdir.*"
+    - "sudo chown.*"
+    - "sudo.*ufw.*"
+    - "sudo.*nginx.*"
+    - "curl\\s+.*\\s+-[A-Z]"
+    - "curl\\s+.*\\s+-u\\s+"
+    - "curl\\s+.*\\s+http://127\\.0\\.0\\.1"
+    - "curl\\s+.*\\s+https://.*\\.ts\\.net"
+    - "podman\\s+"
+    - "npm\\s+"
+    - "git\\s+"
+    - "node\\s+"
+    - "systemctl\\s+"
+    - "curl\\s+.*\\s+-X\\s+"
+  paths:
+    - "\\.ssh/"
+    - "\\.aws/credentials"
+    - "\\.git/"
+    - "/opt/knowledge-vault/"
+    - "/opt/neo4j/"
+    - "/etc/containers/"
+    - "/etc/systemd/"
+    - "/etc/nginx/"
+    - "/etc/systemd/system/"
+    - "/etc/containers/systemd/"
+
+settings:
+  enabled: true
+  strip_injections: true
+  verbose_blocks: true
+  audit_log_max_bytes: 1048576
+
+protected_paths:
+  - pattern: "\\.ssh/"
+    description: "SSH directory"
+    severity: warn
+    category: credentials
+  - pattern: "\\.aws/credentials"
+    description: "AWS credentials"
+    severity: warn
+    category: credentials
+
+prompt_injection_patterns:
+  - pattern: "ignore\\s+(all\\s+)?(previous|prior)\\s+instructions?"
+    description: "Instruction override"
+    severity: block
+    category: prompt_injection
+  - pattern: "new\\s+system\\s+prompt"
+    description: "System prompt injection"
+    severity: block
+    category: prompt_injection

@@ -66,7 +66,7 @@ VM1 (OCI Paris, 954 MB RAM)
     ▼
 bzserv (local, 15 GB RAM, RTX 5070 Ti)
     ├── Neo4j (Podman, heap 2 GB, ports 7474/7687)
-    ├── API Server (Node.js, port 3001)
+    ├── API Server (Node.js, port 3002)
     ├── Vault Markdown (/opt/knowledge-vault/)
     ├── nginx local (WebDAV pour Obsidian)
     ├── Gardener (systemd timer)
@@ -471,7 +471,7 @@ pi-cortex/
 
 | Étape | Tâche | Statut |
 |-------|-------|--------|
-| 6.1 | Configurer nginx VM1 → bzserv (API :3001, Neo4j :7474, WebDAV) | ⬜ |
+| 6.1 | Configurer nginx VM1 → bzserv (API :3002, Neo4j :7474, WebDAV) | ⬜ |
 | 6.2 | Cloudflare Tunnel (si domaine dédié) | ⬜ |
 | 6.3 | Test accès public | ⬜ |
 

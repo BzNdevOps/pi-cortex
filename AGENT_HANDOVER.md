@@ -36,7 +36,7 @@
 
 ```
 iPhone/Laptop (Obsidian) ──WebDAV──→ bzserv:/opt/knowledge-vault/
-Agent Pi (extension)     ──API REST──→ API Server (Node.js :3001) → Neo4j
+Agent Pi (extension)     ──API REST──→ API Server (Node.js :3002) → Neo4j
 Sub-agents               ──API REST──→ filtré par catégorie, write pending-review
 Gardener                 ──API REST──→ 17 missions (systemd timers)
 VM1                       ──nginx─────→ proxy public (Cloudflare Tunnel)
@@ -67,7 +67,7 @@ Déployer sur **bzserv** (ne pas toucher à VM1 sauf proxy) :
    - Path : `/opt/knowledge-vault/`
 
 4. **Firewall bzserv**
-   - Ajouter `ALLOW on tailscale0` pour 3001, 7474, WebDAV
+   - Ajouter `ALLOW on tailscale0` pour 3002, 7474, WebDAV
 
 ---
 

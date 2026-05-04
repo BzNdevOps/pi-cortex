@@ -93,12 +93,12 @@ Internet ──► Cloudflare (CDN + Tunnel) ──► VM1 (OCI Paris)
 | Composant | Machine | Port | Bind | Statut |
 |-----------|---------|------|------|--------|
 | **Neo4j Community** (Podman) | bzserv | `7474` HTTP, `7687` Bolt | `127.0.0.1` (nginx proxy) | ⬜ À déployer |
-| **API Server** (Node.js/Express) | bzserv | `3001` | `127.0.0.1` (nginx proxy) | ⬜ À coder |
+| **API Server** (Node.js/Express) | bzserv | `3002` | `127.0.0.1` (nginx proxy) | ⬜ À coder |
 | **nginx WebDAV** | bzserv | `443` | `100.64.144.126` | ⬜ À configurer |
 | **Vault Markdown** | bzserv | — | `/opt/knowledge-vault/` | ⬜ À créer |
 | **Extension Pi** | bzserv | — | Chargée par Pi | ⬜ À coder |
 | **Gardener** (systemd timer) | bzserv | — | Appelle l'API locale | ⬜ À coder |
-| **nginx proxy** | VM1 | `443` | Proxy → `100.64.144.126:3001`, `:7474`, WebDAV | ⬜ À configurer |
+| **nginx proxy** | VM1 | `443` | Proxy → `100.64.144.126:3002`, `:7474`, WebDAV | ⬜ À configurer |
 
 ### Podman réseaux bzserv
 
@@ -114,7 +114,7 @@ Neo4j sera sur `hermes-net` ou un nouveau réseau dédié `cortex-net`.
 ## Conventions
 
 ### Code
-- API Server : Node.js + Express, port 3001, stdio uniquement (pas de framework lourd)
+- API Server : Node.js + Express, port 3002, stdio uniquement (pas de framework lourd)
 - Extension Pi : TypeScript, `pi.registerTool()` + hooks cycle de vie
 - Gardener : skill Pi exécuté via systemd timer (`pi --model ... "/skill:mem-validate"`)
 - Tous les appels Neo4j passent par le driver officiel `neo4j-driver`
@@ -182,7 +182,7 @@ Toute modification réseau, firewall, SSH, conteneurs ou services **doit préser
 
 | Port | Service | Bind | UFW requis |
 |------|---------|------|------------|
-| `3001` | API pi-cortex | `127.0.0.1` | `ALLOW on tailscale0 to 100.64.144.126 port 3001` |
+| `3002` | API pi-cortex | `127.0.0.1` | `ALLOW on tailscale0 to 100.64.144.126 port 3002` |
 | `7474` | Neo4j HTTP | `127.0.0.1` | Pas d'accès direct (via nginx proxy) |
 | `7687` | Neo4j Bolt | `127.0.0.1` | Pas d'accès direct |
 | WebDAV | nginx | `100.64.144.126` | Intégré dans le flux nginx existant |
@@ -220,7 +220,7 @@ memory_record_lesson(content, project, category)
 ### 3. Valider l'état du graphe
 
 ```bash
-curl http://127.0.0.1:3001/api/health
+curl http://127.0.0.1:3002/api/health
 # Attendu :
 # {
 #   "total_nodes": ...,

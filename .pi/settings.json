@@ -1,0 +1,20 @@
+{
+  "packages": [
+    {
+      "source": "git:github.com/ruizrica/agent-pi@58b2b34d0543067f60f0cdedab8d0878b5f5f2d3",
+      "extensions": [
+        "extensions/agent-chain.ts"
+      ],
+      "skills": [],
+      "prompts": [],
+      "themes": []
+    }
+  ],
+  "extensions": [],
+  "skills": [
+    "skills"
+  ],
+  "defaultProvider": "openrouter",
+  "defaultModel": "moonshotai/kimi-k2.6",
+  "defaultThinkingLevel": "high"
+}
