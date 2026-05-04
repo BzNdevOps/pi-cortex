@@ -3,9 +3,15 @@
   "project": "pi-cortex",
   "cwd": "/home/bzn/Projects/BzNdevOps/pi-cortex",
   "ts": "2026-05-04T21:00:00.000Z",
+  "current_session": 1,
   "last_completed_step": "1.1",
   "next_step": "0.2",
-  "note": "Phase 0.1 (API keys) and Phase 1.1 (Neo4j Quadlet) completed in commit deb0c44. TEST-PLAN.md steps are not sequential — Step 0.2 comes before Phase 1 but was not yet verified. Start at Step 0.2 and run sequentially through Phase 1 (steps 1.2–1.8) before proceeding to Phase 2a.",
-  "files": [],
-  "files_read": []
+  "note": "Phase 0.1 (API keys) and Phase 1.1 (Neo4j Quadlet) completed in commit deb0c44. Session 1 covers Phase 0 + Phase 1. Use SESSIONS.md to load only the relevant TEST-PLAN sections — do NOT cat the full TEST-PLAN.md.",
+  "sessions": {
+    "1": { "phases": "0+1", "status": "in_progress" },
+    "2": { "phases": "2a", "status": "pending" },
+    "3": { "phases": "2b+3", "status": "pending" },
+    "4": { "phases": "4+5a", "status": "pending" },
+    "5": { "phases": "8+9+10+11+E2E", "status": "pending" }
+  }
 }

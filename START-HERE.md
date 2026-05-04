@@ -24,35 +24,44 @@ Neo4j + API REST + extension Pi + Gardener autonome.
 
 ## Démarrage — dans cet ordre exact
 
-### Étape 1 — Lire le contexte complet
+### Étape 1 — Identifier la session courante
 ```bash
-cat /home/bzn/Projects/BzNdevOps/pi-cortex/AGENT_HANDOVER.md
+python3 -c "
+import json
+try:
+    s = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/session-state.json'))
+    print('current_session:', s.get('current_session', 1))
+    print('last_completed_step:', s.get('last_completed_step', 'none'))
+except:
+    print('current_session: 1 (fresh start)')
+"
 ```
-Ce fichier contient : l'état actuel du projet, les décisions architecturales,
-les règles de la boucle, et les fichiers de référence.
+→ Note le numéro de session. Tu vas lire SESSIONS.md à l'étape suivante.
 
-### Étape 2 — Vérifier l'environnement
+### Étape 2 — Lire le plan de session (PAS TEST-PLAN.md complet)
 ```bash
-bash /home/bzn/Projects/BzNdevOps/pi-cortex/scripts/preflight.sh
+cat /home/bzn/Projects/BzNdevOps/pi-cortex/SESSIONS.md
 ```
-Lire le verdict :
-- `🟢 FULLY AUTONOMOUS` → continuer directement à l'Étape 3
+**⚠️ NE PAS lire TEST-PLAN.md complet** — il fait 1500 lignes (20K tokens).
+SESSIONS.md contient les commandes `sed` pour extraire uniquement les phases de ta session.
+
+### Étape 3 — Vérifier l'environnement
+```bash
+bash /home/bzn/Projects/BzNdevOps/pi-cortex/scripts/preflight.sh 2>&1 | tail -20
+```
+- `🟢 FULLY AUTONOMOUS` → continuer
 - `🟡 PARTIALLY AUTONOMOUS` → noter les phases bloquées, continuer quand même
 - `🔴 BLOCKED` → corriger les CRITICAL FAIL avant de continuer
 
-### Étape 3 — Trouver l'étape de reprise
-```bash
-cat /home/bzn/Projects/BzNdevOps/pi-cortex/.context/session-state.json
-```
-Le champ `last_completed_step` indique la dernière étape réussie.
-→ Commencer à l'étape suivante dans TEST-PLAN.md.
-→ Si le fichier est vide ou absent : commencer à **Step 0.2**.
+### Étape 4 — Suivre les instructions de ta session dans SESSIONS.md
+Chaque session contient :
+1. Les `cat reference/docs/X.md` à lire (uniquement les docs pertinents)
+2. Les commandes `sed` pour charger uniquement les phases de ta session
+3. Les commandes de vérification des dépendances
+4. La commande de checkpoint de fin de session
 
-### Étape 4 — Lancer la boucle de codage
-```bash
-cat /home/bzn/Projects/BzNdevOps/pi-cortex/TEST-PLAN.md
-```
-Suivre les instructions de la section "How to use this file".
+**Règle d'or : ne charger que ce dont tu as besoin pour cette session.**
+Budget contexte par session : ~80K tokens utilisés sur 125K disponibles.
 
 ---
 
