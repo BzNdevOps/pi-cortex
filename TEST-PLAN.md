@@ -62,6 +62,25 @@ print('blocked step recorded:', step)
 ```
 Then continue to the next independent step.
 
+**At the end of each phase — Telegram notification (MANDATORY):**
+
+After the git commit, send a progress report to Telegram using the existing `/usr/local/bin/bzserv-telegram-send` script. The message must include: phase name, list of completed steps, what was built, and any blocked steps.
+
+```bash
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    phase_blocked = [x['step'] for x in b if x['step'].startswith('<PHASE_PREFIX>')]
+    print('Blocked: ' + ', '.join(phase_blocked) if phase_blocked else 'None blocked')
+except: print('None blocked')
+")
+printf "pi-cortex Phase <N> complete ✅\n\nSteps done: <LIST>\nWhat was built: <SUMMARY>\n%s\nNext: Phase <N+1>" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase <N> done"
+```
+
+Replace `<N>`, `<PHASE_PREFIX>`, `<LIST>`, `<SUMMARY>` with the actual phase values at each phase end. See the per-phase Telegram blocks below for the exact pre-filled commands.
+
 ---
 
 ## Phase 0 — Prerequisites
@@ -173,6 +192,22 @@ grep -c "^## " /home/bzn/Projects/BzNdevOps/pi-cortex/ALGORITHMS.md
 - Open ALGORITHMS.md and check which sections are missing vs. PLAN-OPUS.md §13
 - Each algorithm must have at minimum: a section header, input/output description, pseudocode or formula
 - Required sections: Porter-lite Stemmer (§1.1), Tokenization+lexical scoring (§1.2), Combined scoring (§1.3), Adaptive excerpt (§1.4), Token budgeting (§1.5), ACO pheromone decay (§2.1), Batch flush (§2.2), Initial seeding (§2.3), Category-by-lexicon detection (§3.1), Routing resolution (§3.2), Step score (§4.1), Run score (§4.2), Strategy ACO weight (§4.3), Adaptive recommendation (§4.4), Deterministic state classifier (§5.1)
+
+---
+
+### Phase 0 complete — notify
+```bash
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('0.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 0 — Prérequis ✅\n\nEnvironnement vérifié:\n• Node.js 22+, Java 21+, podman, nginx-extras, openssl\n• /opt/knowledge-vault writable, /etc/systemd writable\n• PI_CORTEX_*_KEY générées dans /home/bzn/.pi/.env (chmod 600)\n• ALGORITHMS.md: 15 algos documentés\n• Pi SDK version pinned\n\n%s\n\nNext: Phase 1 — Infrastructure Neo4j" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 0 done ✅"
+```
 
 ---
 
@@ -329,10 +364,21 @@ sudo crontab -l | grep -c "neo4j-admin"
 
 ---
 
-### Phase 1 complete — git commit
+### Phase 1 complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 1 complete — Neo4j, vault, nginx WebDAV, backups"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('1.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 1 — Infrastructure ✅\n\nSteps done:\n• 1.1 Neo4j Community 5.x (Podman Quadlet, 127.0.0.1:7474/7687)\n• 1.2 APOC + GDS plugins\n• 1.3 Cypher constraints + full-text index\n• 1.4 /opt/knowledge-vault/ + /var/lib/pi-cortex/state/\n• 1.5 nginx WebDAV (Tailscale TLS, basic auth)\n• 1.6 UFW rules (tailscale0 ALLOW < DENY)\n• 1.7 Restic cron — knowledge-vault daily\n• 1.8 neo4j-admin dump cron daily\n\n%s\n\nNext: Phase 2a — API Server core" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 1 done 🗄️"
 ```
 
 ---
@@ -502,10 +548,21 @@ systemctl is-active pi-cortex-api
 
 ---
 
-### Phase 2a complete — git commit
+### Phase 2a complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 2a complete — API server core, auth, search, category routing"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('2a.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 2a — API Server Core ✅\n\nSteps done:\n• 2a.1 Node.js/TypeScript project (neo4j-driver, express, pino, zod, vitest)\n• 2a.2 Health endpoint + neo4j-driver pool (maxPool=50)\n• 2a.3 Auth middleware (X-API-Key, 401 without key)\n• 2a.4 Porter-lite stemmer + lexical scoring\n• 2a.5 Combined scoring + excerpt + token budgeting\n• 2a.6 Category routing (9 categories, resolve_routing)\n• 2a.7 pi-cortex-api.service systemd unit active\n\n%s\n\nNext: Phase 2b — Watcher + write endpoints" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 2a done 🔌"
 ```
 
 ---
@@ -686,10 +743,21 @@ echo "uses:$USES"
 
 ---
 
-### Phase 2b complete — git commit
+### Phase 2b complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 2b complete — watcher, write endpoints, ACO batch, conflict resolution"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('2b.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 2b — Watcher + Write Endpoints ✅\n\nSteps done:\n• 2b.1 chokidar watcher (polling 1s, debounce 500ms, frontmatter parse)\n• 2b.2 Full vault reconciliation on startup\n• 2b.3 Write endpoints (POST /api/knowledge, /lesson, /reinforce, 409 conflict)\n• 2b.4 ACO batch flush (10 ops, SIGTERM handler)\n• 2b.5 Integration tests (watcher round-trip)\n\n%s\n\nNext: Phase 3 — Pi extension" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 2b done 👁️"
 ```
 
 ---
@@ -828,10 +896,21 @@ cd /home/bzn/Projects/BzNdevOps/pi-cortex/app/extension && npm test 2>&1 | tail 
 
 ---
 
-### Phase 3 complete — git commit
+### Phase 3 complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 3 complete — Pi extension, 7 tools, hooks, guardrails, unit tests"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('3.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 3 — Pi Extension ✅\n\nSteps done:\n• 3.1 esbuild bundle → .pi/extensions/pi-cortex/index.ts\n• 3.2 Extension auto-discovery (no broken paths in settings.json)\n• 3.3 context hook: memory injection, 1500-token cap, 800ms timeout\n• 3.4 7 memory_* tools registered\n• 3.5 Guardrail hook (blocks 0.0.0.0, rm -rf /, --no-verify...)\n• 3.6 session_before_compact: lessons flushed before compact\n• 3.7 Unit test suite ≥10 tests passing\n\n%s\n\nNext: Phase 4 — Skills + prompts" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 3 done 🧩"
 ```
 
 ---
@@ -880,10 +959,21 @@ ls /home/bzn/Projects/BzNdevOps/pi-cortex/prompts/mem-review.md \
 
 ---
 
-### Phase 4 complete — git commit
+### Phase 4 complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 4 complete — 6 skills, 2 prompt templates"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('4.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 4 — Skills + Prompts ✅\n\nSteps done:\n• 6 SKILL.md créés (mem-start, mem-status, mem-extract, mem-validate, mem-consolidate, mem-vault)\n• 2 prompt templates (mem-lesson.md, mem-review.md)\n\n%s\n\nNext: Phase 5a — Gardener MVP (7 missions)" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 4 done 📚"
 ```
 
 ---
@@ -984,10 +1074,21 @@ systemctl list-timers --all 2>/dev/null | grep -c "pi-cortex-gardener"
 
 ---
 
-### Phase 5a complete — git commit
+### Phase 5a complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 5a complete — Gardener MVP, 7 missions, systemd timers"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('5a.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 5a — Gardener MVP ✅\n\nMissions déployées:\n• M3  Clean — ACO evaporation (pheromone decay)\n• M6  Version — valid_from/valid_to\n• M7  Track provenance — source_agent + source_url\n• M11 Cross-reference — inverse RELATED_TO edges\n• M13 Score freshness — freshness_score\n• M15 Perf Neo4j — super-node detection\n• M16 Snapshot — neo4j dump + vault tar mensuel\n\nSystemd: 3 timers (daily/weekly/monthly) actifs\nflock guard: actif\n\n%s\n\n🎉 MVP complet! Next: Phase 8 — Observability" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 5a done — MVP ready! 🌱"
 ```
 
 ---
@@ -1047,10 +1148,21 @@ systemctl cat pi-cortex-api.service | grep -c "OnFailure"
 
 ---
 
-### Phase 8 complete — git commit
+### Phase 8 complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 8 complete — /metrics, journald logs, Telegram health alerts"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('8.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 8 — Observability ✅\n\nSteps done:\n• 8.1 /metrics endpoint (Prometheus text, ≥10 pi_cortex_* counters)\n• 8.2 pino → journald, zéro API key dans les logs (redact)\n• 8.3 OnFailure=alert-telegram@%n.service configuré\n\n%s\n\nNext: Phase 9 — Security hardening" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 8 done 📊"
 ```
 
 ---
@@ -1136,10 +1248,21 @@ echo "new_open_ports:${OPEN_PORTS} env_perms:${ENV_PERMS}"
 
 ---
 
-### Phase 9 complete — git commit
+### Phase 9 complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 9 complete — security hardening, fail2ban WebDAV, AIDE rules"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('9.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 9 — Security Hardening ✅\n\nSteps done:\n• 9.1 Tous les ports sur 127.0.0.1 (3002, 7474, 7687) — zéro 0.0.0.0\n• 9.2 UFW order vérifié: ALLOW tailscale0 < DENY\n• 9.3 fail2ban jail nginx-pi-cortex-webdav actif\n• 9.4 Score sécurité bzserv ≥ 8.5/10 — aucune régression\n\n%s\n\nNext: Phase 10 — Documentation" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 9 done 🔒"
 ```
 
 ---
@@ -1180,10 +1303,21 @@ grep -c "PLAN-OPUS\|11 phase" \
 
 ---
 
-### Phase 10 complete — git commit
+### Phase 10 complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "docs: phase 10 complete — runbooks, README updated, AGENT_HANDOVER updated"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('10.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+printf "pi-cortex Phase 10 — Documentation ✅\n\nRunbooks créés:\n• deploy-bzserv.md\n• rotate-api-keys.md\n• restore-from-snapshot.md\n• obsidian-conflict-resolution.md\n\nREADME.md et AGENT_HANDOVER.md mis à jour (11 phases)\n\n%s\n\nNext: Phase 11 — npm publish" "$BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 10 done 📝"
 ```
 
 ---
@@ -1231,10 +1365,28 @@ npm pack --dry-run 2>&1 | grep -cE '\.(md|ts|json)$'
 
 ---
 
-### Phase 11 complete — git commit
+### Phase 11 complete — commit + notify
 ```bash
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
 git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 11 complete — npm package ready for publish"
+
+BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    pb = [x['step']+': '+x['reason'] for x in b if x['step'].startswith('11.')]
+    print('⚠️ Blocked: ' + ' | '.join(pb) if pb else '✅ No blocked steps')
+except: print('✅ No blocked steps')
+")
+TOTAL_BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    print(str(len(b)) + ' step(s) deferred across all phases')
+except: print('0 deferred')
+")
+printf "pi-cortex Phase 11 — npm Package ✅\n\n@bzndevops/pi-cortex prêt pour npm publish\npackage.json validé, Pi SDK pinned, npm pack OK\n\n%s\n\n--- PROJET COMPLET ---\n%s\n\nRun E2E test: voir TEST-PLAN.md section End-to-End" "$BLOCKED" "$TOTAL_BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] Phase 11 done — projet terminé! 🚀"
 ```
 
 ---
@@ -1291,6 +1443,25 @@ echo "search_score:${SCORE} ${FINAL}"
 
 ---
 
+### E2E complete — final Telegram report
+```bash
+TOTAL_BLOCKED=$(python3 -c "
+import json
+try:
+    b = json.load(open('/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'))
+    if b:
+        lines = ['• ' + x['step'] + ': ' + x['reason'] for x in b]
+        print(str(len(b)) + ' step(s) deferred:\n' + '\n'.join(lines))
+    else:
+        print('Aucune étape bloquée — 100% clean ✅')
+except: print('Aucune étape bloquée — 100% clean ✅')
+")
+printf "🎉 pi-cortex — PROJET COMPLET\n\nTest E2E: search_score + uses + freshness tous non-nuls ✅\n\nRésumé:\n• Neo4j Community 5.x opérationnel\n• API REST (127.0.0.1:3002) avec auth X-API-Key\n• Watcher chokidar + 409 conflict\n• Pi extension (7 tools, hooks, guardrails)\n• Gardener MVP (7 missions, 3 timers systemd)\n• Observability (/metrics Prometheus)\n• Sécurité: fail2ban WebDAV, ports 127.0.0.1, AIDE\n• npm package @bzndevops/pi-cortex prêt\n\n%s" "$TOTAL_BLOCKED" \
+  | /usr/local/bin/bzserv-telegram-send "[pi-cortex] 🚀 PROJET TERMINÉ — E2E PASS"
+```
+
+---
+
 ## Quick Reference — Test Commands Cheatsheet
 
 | Phase | Gate command (short) | PASS condition |
@@ -1314,4 +1485,4 @@ echo "search_score:${SCORE} ${FINAL}"
 
 ---
 
-*Autonomous loop: read step → implement → run test → PASS → next. Ask human only when MANUAL or BLOCKED.*
+*Autonomous loop: read step → implement → run test → PASS → checkpoint → next. After each phase: git commit + Telegram notify. After 3 FAIL: record in blocked-steps.json → continue.*
