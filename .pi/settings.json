@@ -14,7 +14,7 @@
   "skills": [
     "skills"
   ],
-  "defaultProvider": "openrouter",
-  "defaultModel": "moonshotai/kimi-k2.6",
+  "defaultProvider": "llama-local",
+  "defaultModel": "qwen3.6-agent",
   "defaultThinkingLevel": "high"
 }
