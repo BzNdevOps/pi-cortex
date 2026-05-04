@@ -1,129 +1,120 @@
 # AGENT_HANDOVER.md — pi-cortex
 
-> **Session :** 2026-05-03 — Design macro
-> **Statut :** ✅ Architecture entièrement validée, ❌ Aucun code écrit, ❌ Aucun déploiement
-> **Prochain agent :** Commencer le déploiement (Phase 1)
+> **Dernière mise à jour :** 2026-05-04
+> **Statut :** ✅ Architecture validée, ✅ Phase 0.1 + 1.1 faites, ⬜ Phase 0.2–11 à faire
+> **Plan de référence :** `PLAN-OPUS.md` (11 phases — PAS `PLAN.md` qui est obsolète)
 
 ---
 
-## Ce qui a été fait dans cette session
+## Démarrage rapide pour le prochain agent
 
-1. Analyse approfondie du projet `codex-claude-memory-autopilot` (système de mémoire pour Codex/Claude)
-2. Étude de la documentation Pi : extensions, skills, prompts, packages, TUI
-3. Design macro de `pi-cortex` — système équivalent 100% natif Pi
-4. Audit de performance : VM1 (954 MB → pas viable), bzserv (15 GB → déploiement complet)
-5. Validation de 4 questions architecturales clés
-6. Extension du Knowledge Gardener à 17 missions (recherche internet)
-7. Création des documents : README.md, PLAN.md, AGENT_HANDOVER.md
+```
+1. Lancer le preflight :
+   bash /home/bzn/Projects/BzNdevOps/pi-cortex/scripts/preflight.sh
+
+2. Vérifier l'état de la session :
+   cat /home/bzn/Projects/BzNdevOps/pi-cortex/.context/session-state.json
+
+3. Ouvrir TEST-PLAN.md et commencer à l'étape indiquée par last_completed_step
+   → Si session-state absent ou vide : commencer à Step 0.2
+
+4. Spec complète : PLAN-OPUS.md
+   Algorithmes : ALGORITHMS.md
+```
+
+### Progression actuelle
+
+| Phase | Étapes faites | Étapes restantes |
+|-------|--------------|-----------------|
+| Phase 0 (Prérequis) | **0.1** ✅ (clés API générées) | 0.2 → 0.6 |
+| Phase 1 (Infrastructure) | **1.1** ✅ (Neo4j Podman Quadlet) | 1.2 → 1.8 |
+| Phase 2a–11 | — | toutes |
+
+**Prochaine étape : TEST-PLAN.md Step 0.2** (Java 21 vérifié)
 
 ---
 
-## Décisions validées
+## Règles de la boucle autonome
+
+L'agent suit ces règles sans exception :
+
+1. **Ne jamais sauter une étape non-OPTIONAL** sans avoir exécuté son test
+2. **Après 3 tentatives FAIL** → écrire dans `.context/blocked-steps.json`, marquer `[DEFERRED]`, passer à l'étape suivante indépendante
+3. **Après chaque étape PASS** → mettre à jour `.context/session-state.json` avec `last_completed_step`
+4. **À la fin de chaque phase** → `git commit -m "feat: phase Xa complete"`
+5. **Ne jamais exposer un port sur `0.0.0.0`** (voir AGENTS.md)
+6. **Ne jamais réordonner les règles UFW** sans vérifier `ufw status numbered`
+
+---
+
+## Ce qui a été fait (historique)
+
+### Session 2026-05-03 (Design)
+1. Analyse de `codex-claude-memory-autopilot`
+2. Étude de la documentation Pi (extensions, skills, packages)
+3. Design macro de pi-cortex — knowledge cortex natif Pi
+4. Audit Opus 4.7 → `PLAN-OPUS.md` (11 phases, 8 findings critiques résolus)
+5. Création : `README.md`, `PLAN.md`, `PLAN-OPUS.md`, `TEST-PLAN.md`, `AGENT-PREFLIGHT.md`, `ALGORITHMS.md`
+
+### Session 2026-05-04 (Phase 0.1 + 1.1)
+1. Phase 0.1 : Génération des 3 clés `PI_CORTEX_*_KEY` → `/home/bzn/.pi/.env` (chmod 600)
+2. Phase 1.1 : Déploiement Neo4j Community 5.x via Podman Quadlet (`/etc/containers/systemd/neo4j.container`)
+3. Commit : `deb0c44 🟢 Pre-flight Pass + Phase 0.1 & 1.1 Implementation`
+
+---
+
+## Décisions architecturales validées
 
 | # | Question | Décision |
 |---|----------|----------|
 | 1 | Package auto-suffisant vs framework | **Hybride** — socle global + mémoire projet |
-| 2 | Où stocker les connaissances | `/opt/knowledge-vault/` Markdown + Neo4j, sur **bzserv** |
-| 3 | Technologie base de données | **Neo4j Community Edition** (Podman, heap 2 GB) |
+| 2 | Stockage | `/opt/knowledge-vault/` Markdown (source vérité) + Neo4j (index dérivé) |
+| 3 | Base de données | **Neo4j Community 5.x** (Podman, heap 2 GB) |
 | 4 | Interface humaine | **Obsidian + WebDAV** (iPhone + Laptop) |
-| 5 | Extraction connaissances | Agent → pending-review → Gardener → promu |
-| 6 | Agent validateur | **Knowledge Gardener** — 17 missions autonomes |
-| 7 | Sub-agents | **Option E** : Read filtré, Write pending-review, fallback injection au fork |
+| 5 | Conflit Obsidian/API | **Markdown wins** — content_hash + 409 Conflict |
+| 6 | Auth | **X-API-Key** — 3 clés (AGENT/GARDENER/SUBAGENT) dans `/home/bzn/.pi/.env` |
+| 7 | Watcher | **chokidar** polling 1s + debounce 500ms (WebDAV iOS) |
+| 8 | Sub-agents | **Hybrid Option E** — read filtré, write pending-review, fallback static block |
+| 9 | Gardener | **7 missions MVP** (Node.js pur, pas de Pi session) + 10 différées |
+| 10 | GDS | Requis, install Phase 1.2 — missions 4/9 dégradent si absent |
 
 ---
 
-## Architecture résumée
+## Architecture
 
 ```
-iPhone/Laptop (Obsidian) ──WebDAV──→ bzserv:/opt/knowledge-vault/
-Agent Pi (extension)     ──API REST──→ API Server (Node.js :3002) → Neo4j
-Sub-agents               ──API REST──→ filtré par catégorie, write pending-review
-Gardener                 ──API REST──→ 17 missions (systemd timers)
-VM1                       ──nginx─────→ proxy public (Cloudflare Tunnel)
+iPhone/Laptop (Obsidian) ──WebDAV (TLS Tailscale)──► bzserv:/opt/knowledge-vault/
+                                                           │ chokidar watcher
+Agent Pi (extension)     ──X-API-Key──► API Server (Node.js 127.0.0.1:3002) ──► Neo4j (127.0.0.1:7687)
+Sub-agents               ──API Level 3──► write pending-review/ only
+Gardener                 ──systemd timers──► 7 missions MVP
+VM1                      ──nginx proxy──► Tailscale (optionnel, Phase 6)
 ```
-
----
-
-## Prochaine étape : Phase 1 — Infrastructure
-
-Déployer sur **bzserv** (ne pas toucher à VM1 sauf proxy) :
-
-1. **Neo4j via Podman Quadlet**
-   - Image : `neo4j:5-community`
-   - Heap : 2 GB
-   - Volume : `/opt/neo4j/data`
-   - Ports : `7474` (HTTP), `7687` (Bolt)
-   - Plugins : APOC, GDS
-
-2. **Vault Markdown**
-   ```bash
-   mkdir -p /opt/knowledge-vault/{global,project}
-   # Copier les 5 fichiers global/ depuis le package
-   ```
-
-3. **nginx WebDAV**
-   - Module : `ngx_http_dav_module` (inclus standard)
-   - Auth : basic auth
-   - Path : `/opt/knowledge-vault/`
-
-4. **Firewall bzserv**
-   - Ajouter `ALLOW on tailscale0` pour 3002, 7474, WebDAV
-
----
-
-## Contraintes à respecter
-
-| Règle | Détail |
-|-------|--------|
-| **Pas de `PublishPort`** | Bug netavark Ubuntu 24.04 → utiliser nginx proxy local |
-| **Tout sur Tailscale** | Bind sur `100.64.144.126` ou `127.0.0.1` (nginx proxy) |
-| **Ne jamais `0.0.0.0`** | Sauf approbation explicite |
-| **UFW order matters** | `ALLOW on tailscale0` AVANT `DENY` |
-| **systemd Quadlet** | `/etc/containers/systemd/neo4j.container` |
 
 ---
 
 ## Fichiers de référence
 
-| Fichier | Contenu |
-|---------|---------|
-| `README.md` | Vue d'ensemble, quick start, structure projet |
-| `PLAN.md` | Architecture détaillée, 12 sections, 8 phases de déploiement |
-| `AGENT_HANDOVER.md` | Ce fichier — contexte pour le prochain agent |
+| Fichier | Rôle |
+|---------|------|
+| `PLAN-OPUS.md` | **Spec d'exécution** (11 phases, audit Opus 4.7) |
+| `TEST-PLAN.md` | **Boucle de codage** — 1 test par étape, PASS/FAIL/hints |
+| `AGENT-PREFLIGHT.md` | Checklist d'environnement (13 sections) |
+| `scripts/preflight.sh` | Runner exécutable du preflight |
+| `ALGORITHMS.md` | 15 algorithmes à implémenter (phases 2a–5b) |
+| `AGENTS.md` | Règles de sécurité, secrets, tokens GitHub |
+| `.context/session-state.json` | État courant de la session (last_completed_step) |
+| `.context/blocked-steps.json` | Étapes bloquées après 3 tentatives |
 
 ---
 
-## Checklist démarrage rapide
+## Contraintes de sécurité non-négociables
 
-```bash
-# 1. Déployer Neo4j
-sudo cp neo4j.container /etc/containers/systemd/
-sudo systemctl daemon-reload
-sudo systemctl start neo4j
-
-# 2. Vérifier Neo4j
-curl http://127.0.0.1:7474
-
-# 3. Créer vault
-sudo mkdir -p /opt/knowledge-vault/{global,project,.obsidian}
-sudo chown -R bzn:bzn /opt/knowledge-vault
-
-# 4. WebDAV nginx
-sudo cp knowledge-vault.conf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-
-# 5. Test WebDAV
-curl -u bzn:password -X PROPFIND http://127.0.0.1/knowledge/
-```
-
----
-
-## Modèle mental pour le prochain agent
-
-Tu es l'agent qui **déploie l'infrastructure**. Tu n'as pas à concevoir — l'architecture est figée dans `PLAN.md`. Ton job :
-
-1. Lire `PLAN.md` section 11 (Phases de déploiement)
-2. Exécuter Phase 1 étape par étape
-3. Valider chaque étape avant de passer à la suivante
-4. Ne pas coder l'API ou l'extension — c'est pour les phases suivantes
-5. Signaler tout écart entre le plan et la réalité
+| Règle | Détail |
+|-------|--------|
+| **Jamais `0.0.0.0`** | API :3002, Neo4j :7474/:7687 → bind `127.0.0.1` uniquement |
+| **Pas de `PublishPort`** | Bug netavark Ubuntu 24.04 → nginx proxy local |
+| **Tout sur Tailscale** | Inter-nodes via `100.64.x.x` |
+| **UFW order matters** | `ALLOW on tailscale0` AVANT tout `DENY` — vérifier avec `ufw status numbered` |
+| **systemd Quadlet** | `/etc/containers/systemd/neo4j.container` |
+| **Secrets dans `.pi/.env`** | chmod 600, jamais dans les logs (pino redact) |

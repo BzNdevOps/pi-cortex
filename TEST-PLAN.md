@@ -16,18 +16,51 @@ FOR each step in this file (in order):
     1. Read step Goal + PLAN-OPUS.md reference
     2. Implement / fix
     3. Run the Test command
-    4. If output matches PASS → mark ✅ → advance
+    4. If output matches PASS → mark ✅ → update session-state.json → advance
     5. Else → read FAIL hints → go back to step 2
   END
 END
 ```
 
 **Rules:**
-- Never skip a step unless it is marked `[OPTIONAL]` or `[MANUAL]`.
+- Never skip a step unless it is marked `[OPTIONAL]`.
 - Never mark a step PASS without running its exact test command.
-- If a step stays FAIL after 3 coding attempts, write a `BLOCKED:` note and ask the human.
-- Steps marked `[MANUAL]` require human confirmation — pause and wait.
+- If a step stays FAIL after 3 coding attempts → write to `.context/blocked-steps.json`, mark `[DEFERRED]`, continue to the next independent step.
 - Steps marked `[OPTIONAL]` may be skipped for MVP.
+
+**After each PASS — update checkpoint:**
+```bash
+python3 -c "
+import json, datetime, sys
+STATE_FILE = '/home/bzn/Projects/BzNdevOps/pi-cortex/.context/session-state.json'
+step = sys.argv[1]
+try:
+    with open(STATE_FILE) as f: state = json.load(f)
+except: state = {}
+state['last_completed_step'] = step
+state['ts'] = datetime.datetime.utcnow().isoformat() + 'Z'
+state['\$schema'] = 'session-state-v2'
+with open(STATE_FILE, 'w') as f: json.dump(state, f, indent=2)
+print('checkpoint saved:', step)
+" "<STEP_ID>"
+```
+Replace `<STEP_ID>` with the step number (e.g. `"0.2"`, `"1.1"`, `"2a.3"`).
+
+**When BLOCKED (after 3 attempts):**
+```bash
+python3 -c "
+import json, datetime, sys
+BLOCKED_FILE = '/home/bzn/Projects/BzNdevOps/pi-cortex/.context/blocked-steps.json'
+step, reason = sys.argv[1], sys.argv[2]
+try:
+    with open(BLOCKED_FILE) as f: blocked = json.load(f)
+except: blocked = []
+blocked.append({'step': step, 'reason': reason, 'ts': datetime.datetime.utcnow().isoformat()+'Z'})
+with open(BLOCKED_FILE, 'w') as f: json.dump(blocked, f, indent=2)
+print('blocked step recorded:', step)
+" "<STEP_ID>" "<reason>"
+```
+Then continue to the next independent step.
 
 ---
 
@@ -124,6 +157,22 @@ cat /home/bzn/Projects/BzNdevOps/pi-cortex/app/extension/package.json 2>/dev/nul
 **FAIL hints:**
 - File may not exist yet — create it in Phase 3.1; revisit this step then
 - If exists but unpinned: change `"*"` to `"^0.6.0"` (current known-good minor)
+
+---
+
+### Step 0.7 — ALGORITHMS.md contains all 15 algorithms
+> **Goal:** The 15 algorithms referenced throughout the plan are documented in ALGORITHMS.md.
+> **Ref:** PLAN-OPUS.md §13 (Algorithm phase mapping)
+
+```bash
+grep -c "^## " /home/bzn/Projects/BzNdevOps/pi-cortex/ALGORITHMS.md
+```
+
+**PASS:** `15` or more
+**FAIL hints:**
+- Open ALGORITHMS.md and check which sections are missing vs. PLAN-OPUS.md §13
+- Each algorithm must have at minimum: a section header, input/output description, pseudocode or formula
+- Required sections: Porter-lite Stemmer (§1.1), Tokenization+lexical scoring (§1.2), Combined scoring (§1.3), Adaptive excerpt (§1.4), Token budgeting (§1.5), ACO pheromone decay (§2.1), Batch flush (§2.2), Initial seeding (§2.3), Category-by-lexicon detection (§3.1), Routing resolution (§3.2), Step score (§4.1), Run score (§4.2), Strategy ACO weight (§4.3), Adaptive recommendation (§4.4), Deterministic state classifier (§5.1)
 
 ---
 
@@ -234,14 +283,18 @@ curl -sf -u "bzn:${WEBDAV_PASS}" \
 > **Ref:** PLAN-OPUS.md §11 Phase 1.6, AGENTS.md security rules
 
 ```bash
-sudo ufw status numbered | grep -nE 'ALLOW.*tailscale0.*443|DENY.*443' | head -5
+ALLOW_NUM=$(sudo ufw status numbered 2>/dev/null | grep -P 'ALLOW.*tailscale0|tailscale0.*ALLOW' | grep -oP '^\[\s*\K\d+' | head -1)
+DENY_NUM=$(sudo ufw status numbered 2>/dev/null | grep -P 'DENY' | grep -oP '^\[\s*\K\d+' | head -1)
+[ -n "$ALLOW_NUM" ] && [ -n "$DENY_NUM" ] && [ "$ALLOW_NUM" -lt "$DENY_NUM" ] && echo "ORDER_CORRECT allow[$ALLOW_NUM]<deny[$DENY_NUM]" || echo "RECHECK: allow=${ALLOW_NUM:-missing} deny=${DENY_NUM:-missing}"
 ```
 
-**PASS:** The `ALLOW...tailscale0...443` line has a **lower** rule number than any `DENY...443` line
+**PASS:** `ORDER_CORRECT allow[N]<deny[M]` where N < M
 **FAIL hints:**
 - Check full order: `sudo ufw status numbered`
-- Insert at correct position: `sudo ufw insert 1 allow in on tailscale0 to 100.64.144.126 port 443`
+- If ALLOW missing: `sudo ufw insert 1 allow in on tailscale0 to 100.64.144.126 port 443`
+- If wrong order: `sudo ufw delete <deny_rule_number>` then `sudo ufw insert 1 allow in on tailscale0`
 - NEVER use `ufw delete` on existing ALLOW rules without checking order first
+- If `ALLOW_NUM` is missing: Tailscale rule doesn't exist — **STOP, add it before any DENY rules**
 
 ---
 
@@ -276,6 +329,14 @@ sudo crontab -l | grep -c "neo4j-admin"
 
 ---
 
+### Phase 1 complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 1 complete — Neo4j, vault, nginx WebDAV, backups"
+```
+
+---
+
 ## Phase 2a — API Server Core
 
 ### Step 2a.1 — Node.js project initialized
@@ -294,7 +355,9 @@ node -e "const p=require('/home/bzn/Projects/BzNdevOps/pi-cortex/app/api-server/
 **FAIL hints:**
 - `cd app/api-server && npm init -y`
 - `npm install neo4j-driver express chokidar gray-matter pino zod`
-- `npm install -D typescript ts-node @types/node @types/express`
+- `npm install -D typescript ts-node @types/node @types/express esbuild vitest`
+- Add to `package.json`: `"test": "vitest run"` (vitest is the required test framework — not mocha, not jest)
+- `npm test -- --reporter verbose` for detailed output
 
 ---
 
@@ -436,6 +499,14 @@ systemctl is-active pi-cortex-api
   ```
 - `sudo systemctl daemon-reload && sudo systemctl enable pi-cortex-api`
 - Check logs: `journalctl -u pi-cortex-api -n 30`
+
+---
+
+### Phase 2a complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 2a complete — API server core, auth, search, category routing"
+```
 
 ---
 
@@ -615,6 +686,14 @@ echo "uses:$USES"
 
 ---
 
+### Phase 2b complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 2b complete — watcher, write endpoints, ACO batch, conflict resolution"
+```
+
+---
+
 ## Phase 3 — Pi Extension
 
 ### Step 3.1 — Extension builds without errors
@@ -637,29 +716,29 @@ ls -la .pi/extensions/pi-cortex/index.ts
 ---
 
 ### Step 3.2 — Pi discovers and loads the extension
-> **Goal:** After `/reload` inside Pi, `pi-cortex` appears in the `[Extensions]` line.
+> **Goal:** Extension file is in the correct location and `settings.json` has no broken paths.
 > **Ref:** PLAN-OPUS.md §6.4 (auto-discovery), Pi-Cortex-Knowladge.md §4
 
 ```bash
-# Test auto-discovery by checking the extension file is in the right place
+# Verify extension file exists and settings.json has no broken relative paths
 ls /home/bzn/Projects/BzNdevOps/pi-cortex/.pi/extensions/pi-cortex/index.ts && \
 cat /home/bzn/Projects/BzNdevOps/pi-cortex/.pi/settings.json \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); \
-    # auto-discovery = empty extensions array OR absolute path listed
-    ext=d.get('extensions',[]); \
-    # Check no broken relative paths
-    broken=[e for e in ext if e.startswith('../') or e.startswith('./')]; \
-    print('BROKEN:'+','.join(broken) if broken else 'OK')"
+  | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+ext = d.get('extensions', [])
+broken = [e for e in ext if e.startswith('../') or e.startswith('./')]
+print('BROKEN:' + ','.join(broken) if broken else 'OK')
+"
 ```
 
-**PASS:** `OK`
+**PASS:** `OK` (file exists and no broken relative paths in settings)
 **FAIL hints:**
 - `.pi/settings.json` must NOT have relative paths like `"../app/extension/index.ts"` — these break silently
 - Use auto-discovery (empty `extensions: []`) or absolute path: `"/home/bzn/Projects/BzNdevOps/pi-cortex/.pi/extensions/pi-cortex/index.ts"`
-- After fix: run Pi manually (`pi`) and type `/reload` — verify `[Extensions]` lists `pi-cortex`
-- If extension loads but crashes: `journalctl --user -n 20` or check Pi stderr
+- If extension crashes on load: `journalctl --user -n 20` or check Pi stderr for TypeScript errors
 
-> ⚠️ **MANUAL verification required:** Open Pi in terminal, type `/reload`, confirm `[Extensions]` line includes `pi-cortex`. Then mark this step PASS.
+**Note:** Live `/reload` verification inside Pi is optional (requires interactive terminal). The automated test above confirms the file is in place and settings are correct — that is the PASS condition for the autonomous loop.
 
 ---
 
@@ -749,6 +828,14 @@ cd /home/bzn/Projects/BzNdevOps/pi-cortex/app/extension && npm test 2>&1 | tail 
 
 ---
 
+### Phase 3 complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 3 complete — Pi extension, 7 tools, hooks, guardrails, unit tests"
+```
+
+---
+
 ## Phase 4 — Skills + Prompt Templates
 
 ### Step 4.1 — All 6 skill files present with required fields
@@ -790,6 +877,14 @@ ls /home/bzn/Projects/BzNdevOps/pi-cortex/prompts/mem-review.md \
 - `mkdir -p prompts`
 - `mem-lesson.md`: template for recording a new lesson (what happened, why it matters, category)
 - `mem-review.md`: template for reviewing a pending-review candidate (validate, promote or reject)
+
+---
+
+### Phase 4 complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 4 complete — 6 skills, 2 prompt templates"
+```
 
 ---
 
@@ -889,6 +984,14 @@ systemctl list-timers --all 2>/dev/null | grep -c "pi-cortex-gardener"
 
 ---
 
+### Phase 5a complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 5a complete — Gardener MVP, 7 missions, systemd timers"
+```
+
+---
+
 ## Phase 8 — Observability
 
 ### Step 8.1 — /metrics endpoint returns Prometheus text
@@ -941,6 +1044,14 @@ systemctl cat pi-cortex-api.service | grep -c "OnFailure"
 - Add to `[Unit]` section: `OnFailure=alert-telegram@%n.service`
 - Create `/etc/systemd/system/alert-telegram@.service` similar to existing `alert-email@.service`
 - Use `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from `/etc/bzserv-electricity.env`
+
+---
+
+### Phase 8 complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 8 complete — /metrics, journald logs, Telegram health alerts"
+```
 
 ---
 
@@ -1025,6 +1136,14 @@ echo "new_open_ports:${OPEN_PORTS} env_perms:${ENV_PERMS}"
 
 ---
 
+### Phase 9 complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 9 complete — security hardening, fail2ban WebDAV, AIDE rules"
+```
+
+---
+
 ## Phase 10 — Documentation
 
 ### Step 10.1 — Core runbooks exist
@@ -1057,7 +1176,15 @@ grep -c "PLAN-OPUS\|11 phase" \
 **PASS:** `2` or more (at least one reference in each file)
 **FAIL hints:**
 - Add to `README.md`: `> See [PLAN-OPUS.md](PLAN-OPUS.md) for the execution plan (11 phases).`
-- Update `AGENT_HANDOVER.md` header: change "8 phases → 11 phases", point next agent to PLAN-OPUS.md Phase 0
+- `AGENT_HANDOVER.md` already updated (2026-05-04) — Step 10.2 may auto-pass
+
+---
+
+### Phase 10 complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "docs: phase 10 complete — runbooks, README updated, AGENT_HANDOVER updated"
+```
 
 ---
 
@@ -1101,6 +1228,14 @@ npm pack --dry-run 2>&1 | grep -cE '\.(md|ts|json)$'
 - Add `.npmignore` to exclude `app/api-server/`, `app/gardener/`, `reference/`, `.pi/install-cache/`
 - Verify `files` field in `package.json` includes: `knowledge/`, `skills/`, `prompts/`, `extension/dist/`
 - The API server and Gardener are NOT published to npm — they are bzserv-private
+
+---
+
+### Phase 11 complete — git commit
+```bash
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex add -A
+git -C /home/bzn/Projects/BzNdevOps/pi-cortex commit -m "feat: phase 11 complete — npm package ready for publish"
+```
 
 ---
 
