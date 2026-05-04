@@ -4,6 +4,33 @@ import { Type } from "@sinclair/typebox";
 const API_BASE = process.env.PI_CORTEX_API_BASE ?? "http://127.0.0.1:3002";
 const API_KEY  = process.env.PI_CORTEX_AGENT_KEY  ?? "";
 
+// Pi SDK does NOT export prependToSystem — implement it directly.
+// event.messages is a mutable array; the first message with role "system" gets the memory block prepended.
+function prependToSystem(messages: Array<{ role: string; content: string }>, block: string): void {
+  const sys = messages.find(m => m.role === "system");
+  if (sys) {
+    sys.content = `${block}\n\n---\n\n${sys.content}`;
+  } else {
+    // No system message yet — insert one at position 0
+    messages.unshift({ role: "system", content: block });
+  }
+}
+
+// Extract the last user message text from the messages array
+function lastUserMessage(messages: Array<{ role: string; content: string }>): string | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") return messages[i].content;
+  }
+  return undefined;
+}
+
+// Format API search results into a compact memory block (stays within token budget)
+function formatInjectionBlock(results: Array<{ id: string; title: string; content: string; score: number }>): string {
+  if (!results.length) return "";
+  const lines = results.map(r => `• [${r.id}] ${r.title}: ${r.content.slice(0, 200)}`);
+  return `<memory>\n${lines.join("\n")}\n</memory>`;
+}
+
 // Accumulated lessons to flush on session_before_compact
 const pendingLessons: Array<{ content: string; category?: string; tags?: string[] }> = [];
 
@@ -98,12 +125,25 @@ export default function (pi: ExtensionAPI) {
   // Inject relevant memory into system prompt before each agent turn
   // Pattern from PLAN-OPUS.md §6.3 — hard cap 1500 tokens, 800ms timeout
   pi.on("context", async (event, _ctx) => {
-    // TODO: implement memory injection
-    // 1. Extract last user message: lastUserMessage(event.messages)
-    // 2. Fetch: GET /api/search?q=...&budget_tokens=1500&level=compact&top_k=5
-    //    with AbortSignal.timeout(800) and Authorization header
-    // 3. On success: prepend formatted block to system message
-    // 4. On timeout or error: silently return (no throw)
+    const query = lastUserMessage((event as any).messages);
+    if (!query) return;
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/search?` + new URLSearchParams({
+          q: query,
+          level: "compact",
+          budget_tokens: "1500",
+          top_k: "5",
+        }),
+        { headers: { "X-API-Key": API_KEY }, signal: AbortSignal.timeout(800) },
+      );
+      if (!res.ok) return;
+      const data = await res.json() as Array<{ id: string; title: string; content: string; score: number }>;
+      const block = formatInjectionBlock(data);
+      if (block) prependToSystem((event as any).messages, block);
+    } catch {
+      // Timeout or network error — silently skip, agent continues without memory
+    }
   });
 
   // Block dangerous tool calls before execution

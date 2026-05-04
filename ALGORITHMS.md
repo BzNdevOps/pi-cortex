@@ -219,6 +219,17 @@ Candidats :
 → Résultat : B + C + D (550 tokens, ok si marge)
 ```
 
+**Implémentation de `estimate_tokens()` — utiliser exactement ceci :**
+```typescript
+// Estimation sans tokenizer externe: 1 token ≈ 4 chars (GPT/Claude standard)
+function estimateTokens(item: { title: string; content: string }, compact: boolean): number {
+  const text = compact
+    ? `${item.title} ${item.content.slice(0, 150)}`   // compact mode: title + first 150 chars
+    : `${item.title}\n${item.content}`;                 // full mode: title + full content
+  return Math.ceil(text.length / 4);
+}
+```
+
 **Transposition pi-cortex :** ✅ Directe — paramètre optionnel `budget_tokens` dans `/api/search`.
 
 ---
@@ -329,16 +340,62 @@ seed_weight = word_count(file) / 100  # proportionnel à la taille
 **Principe :**
 ```python
 # 9 catégories, chacune avec un lexique fixe de mots-clés
+# NOTE: These are the COMPLETE keyword lists — implement exactly as-is.
+# All keywords are already stemmed (Porter-lite) to match stemmed query tokens.
 _RAW_LEXICON = {
-    "architecture":     ["architecture", "design", "decision", "structure", "pattern", ...],
-    "mistakes":        ["mistake", "avoid", "pitfall", "error", "failure", ...],
-    "best-practices":  ["best", "practice", "guideline", "standard", ...],
-    "corrections":     ["correction", "fix", "repair", "resolve", ...],
-    "guardrails":      ["guardrail", "constraint", "rule", "must", "never", ...],
-    "open-questions":  ["question", "unknown", "pending", "open", ...],
-    "brief":           ["brief", "overview", "purpose", "scope", ...],
-    "reasoning-traces":["reasoning", "trace", "analysis", "hypothesis", ...],
-    "self-model":      ["self", "model", "strength", "weakness", "limit", ...],
+    "architecture": [
+        "architectur", "design", "decis", "structur", "pattern", "diagram",
+        "layer", "component", "modul", "interfac", "servic", "microservic",
+        "monolith", "schema", "topolog", "deploy", "infrastructur", "stack",
+        "databas", "cach", "queue", "broker", "gateway", "proxy", "abstraction",
+    ],
+    "mistakes": [
+        "mistak", "avoid", "pitfall", "error", "failur", "bug", "broken",
+        "wrong", "incorrect", "bad", "never", "do not", "dont", "warn",
+        "trap", "gotcha", "footgun", "regress", "incident", "outag", "postmort",
+        "corrupt", "leak", "deadlock", "racecond", "overflow", "crash",
+    ],
+    "best-practices": [
+        "best", "practic", "guidelin", "standard", "recommend", "prefer",
+        "should", "alway", "convex", "idiom", "pattern", "approach", "strategi",
+        "optim", "effici", "clean", "solid", "principl", "conventionl", "rule",
+        "tip", "trick", "how-to", "cookbook", "checklist", "workflow",
+    ],
+    "corrections": [
+        "correct", "fix", "repair", "resolv", "patch", "workaround", "hotfix",
+        "migrat", "upgrad", "replac", "refactor", "rewrit", "updat", "chang",
+        "amend", "adjust", "reconfigur", "revert", "rollback", "supersed",
+        "deprecat", "remov", "cleanup", "consolidat",
+    ],
+    "guardrails": [
+        "guardrail", "constraint", "rule", "must", "forbidden", "prohibit",
+        "block", "prevent", "secur", "permiss", "restrict", "enforc", "limit",
+        "bound", "safeguard", "hardcod", "whitelist", "blacklist", "deni",
+        "authent", "authoris", "firewal", "ufw", "iptabl", "audit",
+    ],
+    "open-questions": [
+        "question", "unknown", "pending", "open", "unclear", "investig",
+        "todo", "tbd", "research", "explor", "hypothes", "uncertainti",
+        "consider", "tradeoff", "decid", "option", "alternativ", "candidat",
+        "review", "propos", "discuss", "issu", "ticket",
+    ],
+    "brief": [
+        "brief", "overview", "purpos", "scope", "goal", "objectiv", "summari",
+        "introduc", "context", "background", "what", "why", "project", "mission",
+        "vision", "status", "readme", "document", "describ", "explain",
+    ],
+    "reasoning-traces": [
+        "reason", "trace", "analysi", "hypothes", "logic", "infer", "deduc",
+        "thought", "step-by-step", "chain", "problem", "diagnos", "debug",
+        "investig", "root-caus", "theori", "evalu", "compar", "trade-off",
+        "observ", "conclus", "find", "insight", "learn",
+    ],
+    "self-model": [
+        "self", "model", "strength", "weakness", "limit", "capabilit",
+        "bias", "blind", "agent", "persona", "identiti", "confid", "uncert",
+        "style", "prefer", "behavior", "habit", "heurist", "tendenc",
+        "adapt", "improv", "feedback", "reflect", "calibr",
+    ],
 }
 
 # Score = proportion des tokens requête présents dans le lexique

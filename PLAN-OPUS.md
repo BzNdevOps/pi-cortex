@@ -508,6 +508,65 @@ The Gardener is a **standalone Node.js daemon** triggered by systemd timers (it 
 | 15 | **Perf Neo4j** | Daily | Catches super-nodes before they kill the graph. |
 | 16 | **Snapshot** | Monthly | Disaster recovery. **Must exist before Phase 7.** |
 
+### 7.1.1 Cypher for critical MVP missions `[OPUS — implement exactly as written]`
+
+**Mission 3 — ACO evaporation (daily)**
+
+Neo4j 5.x datetime arithmetic: use `duration.between(k.updated_at, datetime()).days` — NOT `duration.inDays()` which takes two Duration arguments, not two DateTime arguments.
+
+```cypher
+// Evaporate pheromone weights — run daily via pi-cortex-gardener@clean.service
+MATCH (k:Knowledge)
+WHERE k.updated_at IS NOT NULL
+SET k.pheromone_weight = toFloat(coalesce(k.uses, 0))
+  * exp(-toFloat(duration.between(k.updated_at, datetime()).days) / 30.0)
+RETURN count(k) AS evaporated
+```
+
+If `updated_at` is stored as ISO string (not Neo4j DateTime), parse it first:
+```cypher
+SET k.pheromone_weight = toFloat(coalesce(k.uses, 0))
+  * exp(-toFloat(duration.between(datetime(k.updated_at), datetime()).days) / 30.0)
+```
+
+**Mission 11 — Cross-reference inverse relations (daily)**
+
+Use `MERGE` (not `CREATE`) to avoid duplicates on every run. Properties on MERGE must be in the `ON CREATE SET` clause.
+
+```cypher
+// Create inverse RELATED_TO edges where they are missing
+MATCH (a:Knowledge)-[:RELATED_TO]->(b:Knowledge)
+WHERE NOT (b)-[:RELATED_TO]->(a)
+  AND a.id <> b.id
+MERGE (b)-[r:RELATED_TO]->(a)
+ON CREATE SET r.pheromone = 0.0, r.created_at = datetime(), r.source = "gardener-crossref"
+RETURN count(r) AS created
+```
+
+**Mission 13 — Freshness scoring (daily)**
+
+```cypher
+// freshness = 1 / (1 + ln(days_since_accessed + 1)) — range (0, 1]
+MATCH (k:Knowledge)
+WHERE k.last_accessed IS NOT NULL
+SET k.freshness_score = 1.0 / (
+  1.0 + log(toFloat(duration.between(datetime(k.last_accessed), datetime()).days) + 1.0)
+)
+RETURN count(k) AS scored
+```
+
+**Mission 16 — Snapshot (monthly)**
+
+```bash
+# Exact command for Neo4j 5.x inside Podman container
+# Stop writes first (brief), dump, restart writes
+podman exec neo4j neo4j-admin database dump neo4j \
+  --to-path=/data/backups/ \
+  --overwrite-destination=true
+# Then copy out of container:
+podman cp neo4j:/data/backups/neo4j.dump /var/backups/neo4j/neo4j-$(date +%Y%m%d).dump
+```
+
 ### 7.2 Deferred missions (Phase 5b — added incrementally after first 30 days of usage) `[OPUS]`
 
 | # | Mission | Trigger to implement |
@@ -567,6 +626,18 @@ Three timers (`-daily.timer`, `-weekly.timer`, `-monthly.timer`) each `Wants=` t
 # On bzserv
 sudo apt install nginx-extras  # WebDAV module included
 
+# STEP 1 — Create the htpasswd file BEFORE writing the nginx config.
+# Without this file nginx fails to start (auth_basic_user_file missing).
+# Replace CHOOSE_A_PASSWORD with a real password; save it in /home/bzn/.pi/.env as WEBDAV_PASSWORD=...
+sudo apt install apache2-utils -y
+sudo htpasswd -c /etc/nginx/.htpasswd-knowledge bzn
+# Verify: sudo cat /etc/nginx/.htpasswd-knowledge  → should show "bzn:$apr1$..."
+
+# STEP 2 — Create vault root and set ownership
+sudo mkdir -p /opt/knowledge-vault/{global,project,pending-review}
+sudo chown -R bzn:bzn /opt/knowledge-vault
+
+# STEP 3 — Write the nginx config
 # /etc/nginx/sites-enabled/knowledge-vault
 server {
     listen 100.64.144.126:443 ssl;       # Tailscale only
