@@ -1,5 +1,12 @@
 # pi-cortex
 
+> **Archive notice (2026-06-20):** this repository is a historical predecessor
+> of Argos. Active development has moved to
+> [`BzNdevOps/argos`](https://github.com/BzNdevOps/argos). See
+> [`ARCHIVE.md`](ARCHIVE.md). Existing deployment plans and live-service notes
+> below are retained for provenance and should not be treated as current
+> operating instructions.
+
 > Mémoire persistante et intelligence partagée pour les agents Pi.
 
 `pi-cortex` est un **système de connaissance autonome** pour les agents Pi et leurs sous-agents. Il combine un **graphe Neo4j** (algorithmes ACO, PageRank, détection de contradictions), une **API REST** (agents), un **vault Markdown** (édition humaine via Obsidian iPhone/laptop), et un **agent « Knowledge Gardener »** qui maintient le graphe automatiquement (17 missions).
